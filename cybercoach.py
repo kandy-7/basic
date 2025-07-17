@@ -117,7 +117,7 @@ else:
                         parsed = data
                     elif "raw" in data and "output" in data["raw"]:
                         raw_output = data["raw"]["output"].strip()
-                        if raw_output.startswith("```json") or raw_output.startswith("```"):
+                        if raw_output.startswith("{") or raw_output.startswith("["):
                             clean_json_str = raw_output.replace("```json", "").replace("```", "").strip()
                             if clean_json_str:
                                 parsed = json.loads(clean_json_str)
