@@ -42,6 +42,7 @@ if "current_q" not in st.session_state:
     st.session_state.score = 0
     st.session_state.answers = []
     st.session_state.answered = False
+    st.session_state.selected = None
 
 q_index = st.session_state.current_q
 
@@ -51,12 +52,17 @@ if q_index < len(questions):
 
     if not st.session_state.answered:
         # Show the question and options
-        answer = st.radio(current["question"], current["options"], key=f"q{q_index}")
-        if st.button("Submit", key=f"submit{q_index}"):
-            is_correct = answer == current["correct"]
+        st.session_state.selected = st.radio(
+            current["question"],
+            current["options"],
+            key=f"q{q_index}"
+        )
+
+        if st.button("Submit"):
+            is_correct = st.session_state.selected == current["correct"]
             st.session_state.answers.append({
                 "question": current["question"],
-                "answer": answer,
+                "answer": st.session_state.selected,
                 "correct": is_correct
             })
 
@@ -70,7 +76,7 @@ if q_index < len(questions):
             webhook_url = "https://kanthimathinathan77.app.n8n.cloud/webhook-test/ask cyber-coach"
             payload = {
                 "question": current["question"],
-                "answer": answer,
+                "answer": st.session_state.selected,
                 "correct": is_correct
             }
 
@@ -126,13 +132,17 @@ if q_index < len(questions):
             except Exception as e:
                 st.error(f"❌ Error contacting webhook: {e}")
 
-            # Prevent showing next question immediately
+            # Mark question as answered
             st.session_state.answered = True
+
     else:
-        # Show next button
+        st.info("Click below to go to the next question.")
         if st.button("Next Question"):
             st.session_state.current_q += 1
             st.session_state.answered = False
+            st.session_state.selected = None
+            # Dummy update to force rerender
+            st.experimental_set_query_params(**{"refresh": str(st.session_state.current_q)})
 
 else:
     # Quiz complete
