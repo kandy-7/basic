@@ -40,7 +40,7 @@ questions = [
 if "current_q" not in st.session_state:
     st.session_state.current_q = 0
     st.session_state.score = 0
-    st.session_state.answers = []
+    st.session_state.quiz_summary = []  # <-- store all answers here
     st.session_state.answered = False
     st.session_state.selected = None
     st.session_state.gemini_response = None
@@ -60,11 +60,14 @@ if q_index < len(questions):
 
         if st.button("Submit"):
             is_correct = st.session_state.selected == current["correct"]
-            st.session_state.answers.append({
+            answer_record = {
                 "question": current["question"],
                 "answer": st.session_state.selected,
                 "correct": is_correct
-            })
+            }
+
+            # Save answer to quiz_summary
+            st.session_state.quiz_summary.append(answer_record)
 
             if is_correct:
                 st.session_state.score += 1
@@ -92,7 +95,7 @@ else:
 
     # Show summary
     st.markdown("#### 📝 Review Your Answers:")
-    for i, entry in enumerate(st.session_state.answers, 1):
+    for i, entry in enumerate(st.session_state.quiz_summary, 1):
         st.write(f"**Q{i}:** {entry['question']}")
         st.write(f"Your Answer: {entry['answer']} - {'✅ Correct' if entry['correct'] else '❌ Incorrect'}")
         st.write("---")
@@ -101,7 +104,7 @@ else:
     if st.session_state.gemini_response is None:
         webhook_url = "https://kanthimathinathan77.app.n8n.cloud/webhook-test/ask cyber-coach"
         payload = {
-            "quiz_summary": st.session_state.answers
+            "quiz_summary": st.session_state.quiz_summary
         }
 
         try:
