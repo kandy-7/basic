@@ -38,24 +38,33 @@ if st.button("Submit"):
                 if isinstance(data, list):
                     data = data[0]
 
-                # ✅ Case 1: Clean Gemini response
+                parsed = None
+
+                # ✅ Case 1: Direct Gemini-like output
                 if 'question' in data:
                     parsed = data
 
-                # ✅ Case 2: Gemini returned raw string with code block
+                # ✅ Case 2: Raw Gemini JSON embedded in code block
                 elif "raw" in data and "output" in data["raw"]:
-                    raw_output = data["raw"]["output"]
-                    clean_json_str = raw_output.replace("```json", "").replace("```", "").strip()
-                    parsed = json.loads(clean_json_str)
-                else:
-                    st.error("❌ Unexpected response format from Gemini or webhook.")
-                    parsed = None
+                    raw_output = data["raw"]["output"].strip()
 
-                # ✅ Final Display – Only the clean output shown
+                    if raw_output.startswith("```json") or raw_output.startswith("```"):
+                        clean_json_str = raw_output.replace("```json", "").replace("```", "").strip()
+
+                        if clean_json_str:
+                            parsed = json.loads(clean_json_str)
+                        else:
+                            st.warning("⚠️ Gemini returned an empty JSON code block.")
+                    else:
+                        st.warning("⚠️ Gemini response did not contain JSON format.")
+                else:
+                    st.warning("⚠️ Gemini response missing expected fields.")
+
+                # ✅ Display clean output
                 if parsed:
                     st.markdown("### 🔍 Gemini 2.0 Evaluation (Recovered)")
-                    st.write(f"**Question:** {parsed.get('question')}")
-                    st.write(f"**Your Answer:** {parsed.get('answer')}")
+                    st.write(f"**Question:** {parsed.get('question', 'Unknown')}")
+                    st.write(f"**Your Answer:** {parsed.get('answer', 'Unknown')}")
                     st.write(f"**Correct:** {'✅ Yes' if parsed.get('correct', False) else '❌ No'}")
 
                     if parsed.get("threat_type"):
@@ -66,6 +75,12 @@ if st.button("Submit"):
                         st.info(f"💡 Tip: {parsed['tip']}")
                     if parsed.get("action"):
                         st.warning(f"📚 Action: {parsed['action']}")
+                else:
+                    # Fallback: No detailed explanation returned, but correct
+                    if is_correct:
+                        st.info("✅ Correct answer submitted. No threat details needed.")
+                    else:
+                        st.warning("⚠️ Incorrect answer, but no detailed response from Gemini.")
 
             except Exception as parse_error:
                 st.error(f"❌ Failed to parse Gemini response: {parse_error}")
