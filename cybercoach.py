@@ -63,18 +63,23 @@ if st.button("Submit"):
                 # ✅ Display clean output
                 if parsed:
                     st.markdown("### 🔍 Gemini 2.0 Evaluation (Recovered)")
-                    st.write(f"**Question:** {parsed.get('question', 'Unknown')}")
-                    st.write(f"**Your Answer:** {parsed.get('answer', 'Unknown')}")
-                    st.write(f"**Correct:** {'✅ Yes' if parsed.get('correct', False) else '❌ No'}")
 
-                    if parsed.get("threat_type"):
-                        st.write(f"**Threat Type:** 🛑 {parsed['threat_type']}")
-                    if parsed.get("risk_level"):
-                        st.write(f"**Risk Level:** ⚠️ {parsed['risk_level']}")
-                    if parsed.get("tip"):
-                        st.info(f"💡 Tip: {parsed['tip']}")
-                    if parsed.get("action"):
-                        st.warning(f"📚 Action: {parsed['action']}")
+                    if parsed.get("fallback"):
+                        st.info(f"💬 Gemini Tip: {parsed.get('tip', 'No additional info')}")
+                    else:
+                        st.write(f"**Question:** {parsed.get('question')}")
+                        st.write(f"**Your Answer:** {parsed.get('answer')}")
+                        st.write(f"**Correct:** {'✅ Yes' if parsed.get('correct', False) else '❌ No'}")
+
+                        if parsed.get("threat_type"):
+                            st.write(f"**Threat Type:** 🛑 {parsed['threat_type']}")
+                        if parsed.get("risk_level"):
+                            st.write(f"**Risk Level:** ⚠️ {parsed['risk_level']}")
+                        if parsed.get("tip"):
+                            st.info(f"💡 Tip: {parsed['tip']}")
+                        if parsed.get("action"):
+                            st.warning(f"📚 Action: {parsed['action']}")
+
                 else:
                     # Fallback: No detailed explanation returned, but correct
                     if is_correct:
