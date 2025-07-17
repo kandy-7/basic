@@ -141,8 +141,8 @@ if q_index < len(questions):
             st.session_state.current_q += 1
             st.session_state.answered = False
             st.session_state.selected = None
-            # Dummy update to force rerender
-            st.experimental_set_query_params(**{"refresh": str(st.session_state.current_q)})
+            # Use modern st.query_params to force rerun
+            st.query_params.update(refresh=str(st.session_state.current_q))
 
 else:
     # Quiz complete
