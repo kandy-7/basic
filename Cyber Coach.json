@@ -1,0 +1,117 @@
+{
+  "name": "Cyber Coach",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ask cyber-coach",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ae2c25fb-e12f-4e9a-bdfb-27040eb151e7",
+      "name": "Webhook",
+      "webhookId": "cd202e5d-3d79-4011-96c5-c2b44321ad3b"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=\"You are a cybersecurity teaching assistant. A student answered a security question. Based on their answer, detect if there's a threat. If it's wrong and risky, identify the type of threat (e.g., phishing, malware, weak security), rate the risk level (low, medium, high), and give a short tip and action to help them learn. Your reply should be a simple JSON with: {{ $json.body.question }}, {{ $json.body.answer }}, {{ $json.body.correct }}, threat_type, risk_level, tip, and action.\"\nRespond strictly in the following JSON format:\n\n{\n  \"question\": \"The question here...\",\n  \"answer\": \"User's answer\",\n  \"correct\": true or false,\n  \"threat_type\": \"phishing or malware\",\n  \"risk_level\": \"low | medium | high\",\n  \"tip\": \"short safety advice\",\n  \"action\": \"next action\"\n}\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "79867f29-ff8a-45f8-b5cc-940817a76779",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        240,
+        220
+      ],
+      "id": "b4c82b77-8d38-4329-b568-ac6592e8afae",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "HfkTSSWIzif8gQGv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = $json?.candidates?.[0]?.content?.parts?.[0]?.text;\n\nif (!rawText) {\n  return [\n    {\n      json: {\n        error: \"Gemini response missing or incomplete\",\n        raw: $json\n      }\n    }\n  ];\n}\n\n// Clean code block markers\nrawText = rawText.replace(/```json\\n?/, '').replace(/```/, '').trim();\n\n// Fallback if no JSON structure is detected at all\nif (!rawText.includes(\"{\")) {\n  return [\n    {\n      json: {\n        question: null,\n        answer: null,\n        correct: false,\n        tip: rawText,\n        threat_type: null,\n        risk_level: null,\n        action: \"\",\n        fallback: true\n      }\n    }\n  ];\n}\n\ntry {\n  const parsed = JSON.parse(rawText);\n  return [\n    {\n      json: {\n        question: parsed.question || null,\n        answer: parsed.answer || null,\n        correct: parsed.correct || false,\n        threat_type: parsed.threat_type || null,\n        risk_level: parsed.risk_level || null,\n        tip: parsed.tip || \"\",\n        action: parsed.action || \"\"\n      }\n    }\n  ];\n} catch (error) {\n  return [\n    {\n      json: {\n        error: \"❌ Failed to parse Gemini JSON\",\n        reason: error.message,\n        raw_output: rawText\n      }\n    }\n  ];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        0
+      ],
+      "id": "6d77b7d2-731e-4b63-a569-54807d44c1f3",
+      "name": "Code"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7e4784e6-031a-485c-aa94-a6dadc2d7f4b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3623b1d3142a48bf933add8736320c85e74d16b048ae30ef03e6c760ba4f108e"
+  },
+  "id": "EehfcwT9R62wCSeg",
+  "tags": []
+}
