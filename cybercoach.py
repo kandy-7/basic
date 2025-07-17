@@ -43,6 +43,7 @@ if "current_q" not in st.session_state:
     st.session_state.answers = []
     st.session_state.answered = False
     st.session_state.selected = None
+    st.session_state.gemini_response = None
 
 q_index = st.session_state.current_q
 
@@ -51,7 +52,6 @@ if q_index < len(questions):
     current = questions[q_index]
 
     if not st.session_state.answered:
-        # Show the question and options
         st.session_state.selected = st.radio(
             current["question"],
             current["options"],
@@ -72,67 +72,6 @@ if q_index < len(questions):
             else:
                 st.warning("⚠️ Oops! That could be a phishing attempt.")
 
-            # Webhook integration
-            webhook_url = "https://kanthimathinathan77.app.n8n.cloud/webhook-test/ask cyber-coach"
-            payload = {
-                "question": current["question"],
-                "answer": st.session_state.selected,
-                "correct": is_correct
-            }
-
-            try:
-                response = requests.post(webhook_url, json=payload)
-                if response.status_code == 200:
-                    try:
-                        data = response.json()
-                        if isinstance(data, list):
-                            data = data[0]
-                        parsed = None
-
-                        if 'question' in data:
-                            parsed = data
-                        elif "raw" in data and "output" in data["raw"]:
-                            raw_output = data["raw"]["output"].strip()
-                            if raw_output.startswith("```json") or raw_output.startswith("```"):
-                                clean_json_str = raw_output.replace("```json", "").replace("```", "").strip()
-                                if clean_json_str:
-                                    parsed = json.loads(clean_json_str)
-                                else:
-                                    st.warning("⚠️ Gemini returned an empty JSON code block.")
-                            else:
-                                st.warning("⚠️ Gemini response did not contain JSON format.")
-                        else:
-                            st.warning("⚠️ Gemini response missing expected fields.")
-
-                        if parsed:
-                            st.markdown("### 🔍 Gemini 2.0 Evaluation (Recovered)")
-                            if parsed.get("fallback"):
-                                st.info(f"💬 Gemini Tip: {parsed.get('tip', 'No additional info')}")
-                            else:
-                                st.write(f"**Question:** {parsed.get('question')}")
-                                st.write(f"**Your Answer:** {parsed.get('answer')}")
-                                st.write(f"**Correct:** {'✅ Yes' if parsed.get('correct', False) else '❌ No'}")
-                                if parsed.get("threat_type"):
-                                    st.write(f"**Threat Type:** 🛑 {parsed['threat_type']}")
-                                if parsed.get("risk_level"):
-                                    st.write(f"**Risk Level:** ⚠️ {parsed['risk_level']}")
-                                if parsed.get("tip"):
-                                    st.info(f"💡 Tip: {parsed['tip']}")
-                                if parsed.get("action"):
-                                    st.warning(f"📚 Action: {parsed['action']}")
-                        else:
-                            if is_correct:
-                                st.info("✅ Correct answer submitted. No threat details needed.")
-                            else:
-                                st.warning("⚠️ Incorrect answer, but no detailed response from Gemini.")
-                    except Exception as parse_error:
-                        st.error(f"❌ Failed to parse Gemini response: {parse_error}")
-                else:
-                    st.error(f"❌ Failed to get response from n8n. Status code: {response.status_code}")
-            except Exception as e:
-                st.error(f"❌ Error contacting webhook: {e}")
-
-            # Mark question as answered
             st.session_state.answered = True
 
     else:
@@ -141,11 +80,10 @@ if q_index < len(questions):
             st.session_state.current_q += 1
             st.session_state.answered = False
             st.session_state.selected = None
-            # Use modern st.query_params to force rerun
             st.query_params.update(refresh=str(st.session_state.current_q))
 
+# All questions answered
 else:
-    # Quiz complete
     st.success("🎉 Quiz Completed!")
     total = len(questions)
     score = st.session_state.score
@@ -158,3 +96,63 @@ else:
         st.write(f"**Q{i}:** {entry['question']}")
         st.write(f"Your Answer: {entry['answer']} - {'✅ Correct' if entry['correct'] else '❌ Incorrect'}")
         st.write("---")
+
+    # Call Gemini only once after all answers
+    if st.session_state.gemini_response is None:
+        webhook_url = "https://kanthimathinathan77.app.n8n.cloud/webhook-test/ask cyber-coach"
+        payload = {
+            "quiz_summary": st.session_state.answers
+        }
+
+        try:
+            response = requests.post(webhook_url, json=payload)
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if isinstance(data, list):
+                        data = data[0]
+                    parsed = None
+
+                    if 'question' in data:
+                        parsed = data
+                    elif "raw" in data and "output" in data["raw"]:
+                        raw_output = data["raw"]["output"].strip()
+                        if raw_output.startswith("```json") or raw_output.startswith("```"):
+                            clean_json_str = raw_output.replace("```json", "").replace("```", "").strip()
+                            if clean_json_str:
+                                parsed = json.loads(clean_json_str)
+                            else:
+                                st.warning("⚠️ Gemini returned an empty JSON code block.")
+                        else:
+                            st.warning("⚠️ Gemini response did not contain JSON format.")
+                    else:
+                        st.warning("⚠️ Gemini response missing expected fields.")
+
+                    st.session_state.gemini_response = parsed
+
+                except Exception as parse_error:
+                    st.error(f"❌ Failed to parse Gemini response: {parse_error}")
+            else:
+                st.error(f"❌ Failed to get response from Gemini. Status: {response.status_code}")
+        except Exception as e:
+            st.error(f"❌ Error contacting webhook: {e}")
+
+    # Display Gemini Response
+    if st.session_state.gemini_response:
+        parsed = st.session_state.gemini_response
+        st.markdown("### 🧠 Gemini Evaluation Summary")
+        if isinstance(parsed, list):
+            for i, entry in enumerate(parsed, 1):
+                st.write(f"**Q{i}:** {entry.get('question', 'N/A')}")
+                st.write(f"Your Answer: {entry.get('answer', 'N/A')} - {'✅ Correct' if entry.get('correct', False) else '❌ Incorrect'}")
+                if entry.get("threat_type"):
+                    st.write(f"**Threat Type:** 🛑 {entry['threat_type']}")
+                if entry.get("risk_level"):
+                    st.write(f"**Risk Level:** ⚠️ {entry['risk_level']}")
+                if entry.get("tip"):
+                    st.info(f"💡 Tip: {entry['tip']}")
+                if entry.get("action"):
+                    st.warning(f"📚 Action: {entry['action']}")
+                st.write("---")
+        else:
+            st.warning("⚠️ Unexpected response format from Gemini.")
